@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="WPF Tracker">
+<meta name="theme-color" content="#0D0D0D">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>WPF × 18 Tage</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:#0D0D0D;color:#F0F0F0;font-family:-apple-system,sans-serif;min-height:100vh;padding-bottom:80px;}
+button{cursor:pointer;font-family:inherit;}
+
+/* HEADER */
+.header{background:#0A0A0A;border-bottom:2px solid #2ECC71;padding:10px 14px;position:sticky;top:0;z-index:50;}
+.header-row{display:flex;justify-content:space-between;align-items:center;}
+.title{font-weight:700;font-size:15px;color:#2ECC71;}
+.subtitle{font-size:9px;color:#888;margin-top:2px;}
+.count{font-size:20px;font-weight:700;color:#2ECC71;text-align:right;line-height:1;}
+.count-label{font-size:8px;color:#888;text-align:right;}
+.progress-bar{margin-top:6px;background:#1a1a1a;border-radius:5px;height:5px;overflow:hidden;}
+.progress-fill{height:100%;background:linear-gradient(90deg,#1A6B3C,#2ECC71);transition:width .3s;}
+.wpf-hint{margin-top:6px;font-size:9px;color:#E67E22;}
+
+/* STRIP */
+.strip{display:flex;gap:3px;overflow-x:auto;padding:6px 10px;background:#0A0A0A;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.strip::-webkit-scrollbar{display:none;}
+.day-btn{min-width:44px;flex-shrink:0;padding:4px 2px;border-radius:7px;border:1.5px solid #2a2a2a;background:#111;text-align:center;}
+.day-btn.active{background:#1a2a1a;}
+.day-btn.done-btn{background:#0d1f12;}
+.day-btn.today-btn{border-color:#F39C12!important;}
+.day-date{font-size:8px;color:#888;}
+.day-num{font-size:13px;font-weight:700;color:#888;line-height:1.1;}
+.day-dot{font-size:7px;color:transparent;}
+.day-dot.green{color:#2ECC71;}
+.day-dot.orange{color:#F39C12;}
+
+/* TABS */
+.tabs{display:flex;background:#0A0A0A;border-bottom:1px solid #1a1a1a;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab-btn{flex:0 0 auto;padding:9px 12px;border:none;background:transparent;color:#888;font-size:10px;font-weight:600;white-space:nowrap;border-bottom:2px solid transparent;}
+.tab-btn.active{background:#1a1a1a;color:#2ECC71;border-bottom:2px solid #2ECC71;}
+
+/* DAY CARD */
+.day-card{margin:6px 10px;border-radius:10px;padding:10px 12px;}
+.day-meta{font-size:10px;color:#888;}
+.day-title{font-size:18px;font-weight:700;margin-top:2px;}
+.day-training{font-size:11px;color:#ccc;margin-top:2px;}
+.day-tags{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;}
+.tag{font-size:9px;padding:2px 7px;border-radius:8px;}
+.done-toggle{border-radius:8px;padding:7px 10px;font-weight:700;font-size:11px;border:2px solid #555;background:transparent;color:#888;flex-shrink:0;}
+.done-toggle.done{background:#2ECC71;border-color:#2ECC71;color:#000;}
+.bars{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.bar-label{display:flex;justify-content:space-between;margin-bottom:2px;}
+.bar-label span{font-size:9px;color:#888;}
+.bar-val{font-size:9px;font-weight:700;}
+.bar-bg{background:#1a1a1a;border-radius:4px;height:5px;overflow:hidden;}
+.bar-fill{height:100%;transition:width .3s;}
+.bar-pct{font-size:7px;color:#666;margin-top:1px;}
+
+/* EXERCISES */
+.ex-section{padding:0 10px;}
+.section-title{font-size:10px;font-weight:700;margin-bottom:5px;letter-spacing:.5px;}
+.ex-table{background:#111;border-radius:9px;overflow:hidden;border:1px solid #222;}
+.ex-header{display:grid;grid-template-columns:1fr 44px 50px 40px;background:#141414;padding:5px 8px;gap:4px;}
+.ex-hcell{font-size:8px;color:#666;font-weight:700;text-align:center;}
+.ex-hcell:first-child{text-align:left;}
+.ex-row{display:grid;grid-template-columns:1fr 44px 50px 40px;padding:6px 8px;gap:4px;align-items:start;border-top:1px solid #161616;}
+.ex-row:nth-child(odd){background:#0d1a0d;}
+.ex-row:nth-child(even){background:#0a150a;}
+.ex-name{font-size:10px;color:#ddd;}
+.ex-hint{font-size:8px;color:#666;margin-top:1px;}
+.ex-cell{font-size:10px;text-align:center;}
+.ex-s{color:#2ECC71;font-weight:700;}
+.ex-w{color:#F39C12;}
+.ex-p{color:#888;font-size:9px;}
+
+/* PLAN / LOG */
+.wpf-box{background:#1A0A00;border:1px solid rgba(230,126,34,.27);border-radius:8px;padding:8px 10px;margin:6px 10px 0;}
+.wpf-box-title{font-size:9px;font-weight:700;color:#E67E22;margin-bottom:4px;}
+.wpf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;}
+.wpf-cell{background:#0d0800;border-radius:5px;padding:5px 6px;text-align:center;}
+.wpf-cell-label{font-size:8px;font-weight:700;}
+.wpf-cell-time{font-size:8px;color:#888;margin-top:1px;}
+
+.slot{margin:4px 10px 0;border-radius:8px;overflow:hidden;}
+.slot-inner{display:flex;align-items:center;padding:8px 10px;gap:8px;}
+.slot-icon{font-size:13px;}
+.slot-info{flex:1;min-width:0;}
+.slot-header{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+.slot-name{font-size:10px;font-weight:700;}
+.slot-time{font-size:8px;color:#888;}
+.slot-phase{font-size:7px;padding:1px 5px;border-radius:6px;}
+.slot-plan{font-size:9px;color:#666;margin-top:2px;line-height:1.3;}
+.slot-entry{font-size:10px;color:#bbb;margin-top:3px;}
+.slot-vals{text-align:right;flex-shrink:0;}
+.slot-kcal{font-size:11px;font-weight:700;color:#F39C12;}
+.slot-prot{font-size:9px;color:#2ECC71;}
+.slot-time-logged{font-size:7px;color:#555;}
+.slot-actions{display:flex;border-top:1px solid #1a1a1a;}
+.slot-action{flex:1;padding:5px;border:none;background:transparent;color:#2ECC71;font-size:9px;font-weight:600;}
+.slot-delete{padding:5px 10px;border:none;background:transparent;color:#E74C3C;font-size:9px;border-left:1px solid #1a1a1a;}
+
+.foto-hint{background:#0A0A14;border:1px solid rgba(52,152,219,.2);border-radius:8px;padding:8px 10px;margin:6px 10px 0;}
+.foto-hint-title{font-size:9px;font-weight:700;color:#3498DB;margin-bottom:2px;}
+.foto-hint-text{font-size:9px;color:#888;line-height:1.5;}
+.foto-hint-text code{color:#F39C12;font-family:monospace;}
+
+/* CALENDAR */
+.cal-section{padding:10px;}
+.cal-card{background:#111;border-radius:10px;padding:10px;margin-bottom:8px;border:1px solid #222;}
+.cal-month{font-weight:700;color:#2ECC71;margin-bottom:6px;font-size:11px;}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px;}
+.cal-wd{text-align:center;font-size:8px;color:#555;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cal-day{aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1.5px solid transparent;}
+.cal-day.has-plan{background:#151515;border-color:#2a2a2a;cursor:pointer;}
+.cal-day.is-sel{background:#1a2a1a;}
+.cal-day.is-done{background:#1A3A2A;border-color:#2ECC71;}
+.cal-day.is-today{border-color:#F39C12!important;}
+.cal-day.no-plan{opacity:.2;}
+.cal-day-num{font-size:9px;font-weight:700;color:#444;}
+.cal-day-lbl{font-size:6px;color:#888;}
+.cal-day-mark{font-size:7px;}
+
+/* WPF TAB */
+.wpf-tab{padding:10px;}
+.wpf-intro{background:#0A0A14;border:1px solid #3498DB;border-radius:10px;padding:12px;margin-bottom:8px;}
+.wpf-intro-title{font-size:13px;font-weight:700;color:#3498DB;margin-bottom:6px;}
+.wpf-intro-text{font-size:10px;color:#bbb;line-height:1.6;}
+.wpf-item{background:#111;border-radius:8px;padding:10px 11px;margin-bottom:6px;}
+.wpf-item-title{font-size:11px;font-weight:700;margin-bottom:3px;}
+.wpf-item-text{font-size:9.5px;color:#bbb;line-height:1.5;}
+.wpf-measure{background:#0A1A0A;border:1px solid #2ECC71;border-radius:8px;padding:10px 11px;}
+.wpf-measure-title{font-size:10px;font-weight:700;color:#2ECC71;margin-bottom:6px;}
+.measure-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a2a1a;cursor:pointer;}
+.measure-day{font-size:10px;color:#aaa;}
+.measure-label{font-size:9px;color:#2ECC71;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:flex;align-items:flex-end;}
+.modal{background:#111;width:100%;border-radius:16px 16px 0 0;padding:16px;max-height:88vh;overflow-y:auto;}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.modal-title{font-size:12px;font-weight:700;}
+.modal-close{background:transparent;border:none;color:#888;font-size:20px;}
+.plan-ref{background:#0d1a10;border:1px solid #2ECC71;border-radius:7px;padding:6px 9px;margin-bottom:10px;}
+.plan-ref-label{font-size:8px;color:#2ECC71;margin-bottom:2px;}
+.plan-ref-text{font-size:9px;color:#bbb;}
+.paste-btn{width:100%;padding:9px;border:1px solid #F39C12;border-radius:8px;background:transparent;color:#F39C12;font-weight:700;font-size:11px;margin-bottom:8px;}
+.paste-btn.open{background:#1a0e00;}
+.paste-area{width:100%;height:60px;background:#0d0d0d;border:1px solid #333;border-radius:6px;color:#fff;padding:7px;font-size:9px;resize:none;font-family:inherit;}
+.paste-apply{margin-top:5px;width:100%;padding:8px;border:none;border-radius:6px;background:#F39C12;color:#000;font-weight:700;font-size:10px;}
+.divider{text-align:center;font-size:8px;color:#444;margin:6px 0;}
+.field-label{font-size:9px;color:#aaa;margin-bottom:3px;}
+.field-input{width:100%;background:#0d0d0d;border:1px solid #2a2a2a;border-radius:6px;color:#fff;padding:8px 9px;font-size:11px;font-family:inherit;margin-bottom:8px;}
+.modal-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+.btn-cancel{padding:11px;border:1px solid #333;border-radius:8px;background:transparent;color:#888;font-weight:600;font-size:11px;}
+.btn-save{padding:11px;border:none;border-radius:8px;background:#2ECC71;color:#000;font-weight:700;font-size:11px;}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────
+const START = new Date("2026-05-30T00:00:00");
+
+const PLAN = [
+  {tag:1,datum:"30.05.",typ:"KRAFT",ort:"Studio",bereich:"PUSH +",farbe:"#2ECC71",training:"Brust / Schulter / Trizeps — KOMPENSATION morgen",dauer:"65–70 Min",kb:"~420",zk:1900,zp:175,
+   ueb:[["Aufwärmen Laufband","—","5 Min","—","Puls 120"],["Flachbank Hanteldrücken","5","8–10","90s","Schulterblätter zurück — 1 Satz mehr!"],["Schrägbank KH 30°","4","10–12","75s","Kein Hohlkreuz"],["Kabelzug Fly","3","12–15","60s","Brust fühlen"],["Schulterdrücken Maschine","4","10–12","75s","Kern angespannt"],["Seitheben KH","3","12–15","60s","Pinkies leicht oben"],["Trizeps-Pushdown","3","12–15","60s","Ellbogen fix"],["Dips KG / Maschine","4","max/10","60s","Oberkörper leicht vor"],["Abschluss Laufband","—","12 Min","—","Puls 135–145 — länger!"]],
+   m:{s1:"More Clear/Whey 30g ~120kcal",s2:"Whey Isolat 25g ~100kcal",m1:"2 Eier + 150g Hüttenkäse + 2 Reiswaffeln",m2:"200g Hähnchen + 150g Kartoffeln + Brokkoli",sn:"150g Quark + Beeren + 1 Banane",ab:"200g Lachs + Spinat + Zucchini",ca:"200g Magerquark opt."}},
+  {tag:2,datum:"31.05.",typ:"HOTEL",ort:"Hotelzimmer",bereich:"HOTEL BEINE",farbe:"#9B59B6",training:"🏨 Hotel — Beine & Core · nur Boden · 20 Min",dauer:"20 Min",kb:"~180",zk:1640,zp:155,
+   ueb:[["Warm-up: Hüftkreise + Beinschwingen","—","90s","—","Kein Equipment nötig"],["Kniebeugen (eng + breit wechseln)","4","20","20s","Tief, Knie über Zehen"],["Ausfallschritte vorwärts","3","12 je","15s","Abwechselnd links/rechts"],["Glute Bridge (Boden)","3","20","15s","Hüfte oben 1s halten"],["Mountain Climbers","3","40s","15s","Schnell — Puls hoch"],["Plank","3","45s","15s","Kern fest"],["Bicycle Crunch","2","20","15s","Ellbogen zum Knie"]],
+   m:{s1:"Whey Shake 30g (Reise-Sachet)",s2:"Whey 25g oder Proteinriegel",m1:"Hotel: 2–3 Eier + Joghurt + Obst",m2:"Hotel: Hähnchen/Fisch + Salat (kein KH abends)",sn:"Quark/Joghurt oder Nüsse",ab:"Leichte Proteinmahlzeit — Hotelrestaurant",ca:"opt."}},
+  {tag:3,datum:"01.06.",typ:"CARDIO",ort:"Zuhause",bereich:"HIIT",farbe:"#F39C12",training:"HIIT + Core · kein Equipment",dauer:"42–45 Min",kb:"~300",zk:1640,zp:158,
+   ueb:[["Warm-up Jumping Jacks","1","3 Min","—","Puls 110"],["Burpees (40s/20s)","4","40s","20s","Volle Streckung"],["Mountain Climbers","4","40s","20s","Hüfte unten"],["Jump Squats","4","40s","20s","Weich landen"],["High Knees","4","40s","20s","Knie hoch"],["Push-ups","3","max","30s","Variieren"],["Plank","3","45s","20s","Kern hart"],["Cool-down","—","5 Min","—","Dehnen"]],
+   m:{s1:"More Clear 30g",s2:"Whey Isolat 25g",m1:"150g Quark + 30g Haferflocken + Beeren",m2:"200g Putenbrust + 100g Quinoa + Paprika",sn:"150g Joghurt 0%",ab:"200g Hähnchen + Brokkoli + Zucchini",ca:"opt."}},
+  {tag:4,datum:"02.06.",typ:"KRAFT",ort:"Studio",bereich:"PULL",farbe:"#2ECC71",training:"Rücken / Bizeps / Schulter",dauer:"55–60 Min",kb:"~330",zk:1870,zp:172,
+   ueb:[["Aufwärmen Rudergerät","—","5 Min","—","Schultern mobilisieren"],["Latzug breit","4","8–10","90s","Ellbogen Richtung Hüfte"],["Sitzrudern Kabel","4","10–12","75s","Schulterblätter zusammen"],["KH-Rudern einarmig","3","10–12 je","60s","Rücken parallel"],["Face Pulls","3","15","60s","Außenrotation"],["Klimmzüge (Assist)","3","6–8","90s","Volle Bewegung"],["Bizeps-Curls KH","3","10–12","60s","Supination"],["Hammer Curls","3","12","60s","Brachialis"],["Abschluss Bike","—","7 Min","—","Puls 130–140"]],
+   m:{s1:"More Clear 30g",s2:"Eiskaffee 25g",m1:"3 Eier + 100g Räucherlachs + Tomaten",m2:"200g Hähnchen + 150g Kartoffeln + Erbsen",sn:"Casein 30g + Banane",ab:"200g Seelachs + Salat",ca:"opt."}},
+  {tag:5,datum:"03.06.",typ:"REST",ort:"Zuhause",bereich:"AKTIV",farbe:"#3498DB",training:"Spaziergang + Stretching · MESSEN!",dauer:"45 Min",kb:"~180",zk:1640,zp:150,
+   ueb:[["Spaziergang","—","45 Min","—","Puls 100–115"],["Hip-Flexor Stretch","3","30s je","—","Dehnen"],["Quadrizeps Stretch","3","30s je","—","Stehend"],["Schulter-Rotation","2","20","—","Mobilisieren"],["GEWICHT + UMFANG MESSEN","—","—","—","Nüchtern morgens!"]],
+   m:{s1:"More Clear 30g",s2:"Whey 25g",m1:"150g Quark + Leinsamen + Beeren",m2:"150g Hähnchen + 80g Linsen + Gurke",sn:"100g Quark + Himbeeren",ab:"150g Lachs + Spargel",ca:"opt."}},
+  {tag:6,datum:"04.06.",typ:"REST",ort:"—",bereich:"PASSIV",farbe:"#95A5A6",training:"Vollständige Erholung",dauer:"—",kb:"~0",zk:1620,zp:152,
+   ueb:[["Kein Sport","—","—","—","Regeneration"],["Mahlzeiten vorbereiten","—","—","—","Woche 2"],["8h Schlaf","—","—","—","Cortisol senken"]],
+   m:{s1:"More Clear 30g",s2:"Whey 25g",m1:"2 Eier + Räucherlachs + Rucola",m2:"150g Hähnchen + Salat",sn:"30g Whey",ab:"150g Thunfisch + Tomate + Ei",ca:"opt."}},
+  {tag:7,datum:"05.06.",typ:"KRAFT",ort:"Studio",bereich:"GK HEAVY",farbe:"#2ECC71",training:"5×5 Compound — Zyklus 2",dauer:"55–60 Min",kb:"~380",zk:1880,zp:168,
+   ueb:[["Aufwärmen Laufband","—","5 Min","—","Gelenke"],["Kniebeuge LH","5","5","180s","80–85% 1RM"],["Bankdrücken LH","5","5","180s","Scapula fixiert"],["Kreuzheben","3","5","180s","Rücken neutral"],["Klimmzüge","3","6–8","90s","Breite oben"],["Schulterdrücken LH","3","8","90s","Stehend"],["Plank","3","60s","30s","Abschluss"]],
+   m:{s1:"More Clear 30g",s2:"Eiskaffee 25g",m1:"4 Eier + 100g Quark + 2 Reiswaffeln",m2:"200g Rindfleisch + 120g Kartoffeln + Brokkoli",sn:"30g Whey + Banane + Nüsse",ab:"200g Lachs + Feldsalat",ca:"opt."}},
+  {tag:8,datum:"06.06.",typ:"KRAFT",ort:"Studio",bereich:"BEINE +",farbe:"#2ECC71",training:"Hinge-Focus / RDL / Hip Thrust — KOMPENSATION morgen",dauer:"65–70 Min",kb:"~400",zk:1880,zp:175,
+   ueb:[["Aufwärmen Rudergerät","—","5 Min","—","Hüfte mobilisieren"],["Romanian Deadlift LH","5","10","90s","Hamstrings dehnen — 1 Satz mehr!"],["Hip Thrust LH","5","12","90s","1s oben spannen"],["Bulgarian Split Squat","4","10 je","90s","Erhöhtes Bein"],["Sumo-Kniebeuge","3","12","75s","Innenschenkel"],["Leg Curl sitzend","3","12","60s","Hamstrings"],["Beinheben Kabel","3","15 je","45s","Abduktoren"],["Ab Wheel","3","12","45s","Core"],["Wadenheben einbeinig","3","15 je","45s","Zusatz-Finisher"]],
+   m:{s1:"More Clear 30g",s2:"Whey 25g",m1:"3 Eier + 150g Hüttenkäse + Paprika",m2:"200g Hähnchen + 100g Kartoffeln + Spinat",sn:"Casein 30g + Apfel",ab:"200g Putenschnitzel + Zucchini",ca:"opt."}},
+  {tag:9,datum:"07.06.",typ:"HOTEL",ort:"Hotelzimmer",bereich:"HOTEL HIIT",farbe:"#9B59B6",training:"🏨 Hotel — HIIT Ganzkörper · nur Boden · 20 Min",dauer:"20 Min",kb:"~200",zk:1640,zp:155,
+   ueb:[["Warm-up: High Knees","—","60s","—","Puls hochbringen"],["Burpees","4","8","15s","Volle Streckung oben"],["Push-up + Mountain Climber Combo","3","10+20s","15s","Direkt hintereinander"],["Jump Squats","4","15","15s","Weich landen"],["Plank to Downward Dog","3","10","15s","Fließend"],["Bicycle Crunch","3","20","15s","Langsam, Ellbogen zum Knie"],["GEWICHT MESSEN (Hälfte)!","—","—","—","Morgens nüchtern — notieren!"]],
+   m:{s1:"Whey Shake 30g (Reise-Sachet)",s2:"Whey 25g oder Proteinriegel",m1:"Hotel: 2–3 Eier + Joghurt + Obst",m2:"Hotel: Hähnchen/Fisch + Salat",sn:"Quark/Joghurt oder Nüsse",ab:"Protein + Gemüse — kein KH abends",ca:"opt."}},
+  {tag:10,datum:"08.06.",typ:"KRAFT",ort:"Studio",bereich:"PUSH",farbe:"#2ECC71",training:"Supersets — höher als Tag 1",dauer:"55–60 Min",kb:"~360",zk:1870,zp:172,
+   ueb:[["Aufwärmen","—","5 Min","—","Warm-up"],["Superset: Flachbank + Dips","4","10+10","90s","Kein Pause dazwischen"],["Superset: Schrägbank + Pushdown","3","12+12","75s","Direkt"],["Superset: Fly + Overhead","3","12+12","75s","Volle Kontraktion"],["Schulterdrücken Maschine","3","12","75s","Mehr als Tag 1!"],["Superset: Seitheben + Fronth.","3","12+12","60s","Deltoideus"],["Abschluss Laufband","—","8 Min","—","Puls 135–145"]],
+   m:{s1:"More Clear 30g",s2:"Eiskaffee 25g",m1:"4 Eier + 1 VK-Brot + Tomaten",m2:"200g Hähnchen + 130g Kartoffeln",sn:"30g Whey + Banane",ab:"200g Lachs + Brokkoli",ca:"opt."}},
+  {tag:11,datum:"09.06.",typ:"REST",ort:"Outdoor",bereich:"REFEED",farbe:"#E67E22",training:"Radfahren 40 Min + REFEED!",dauer:"40 Min",kb:"~250",zk:2100,zp:162,
+   ueb:[["Radfahren oder Schwimmen","—","40 Min","—","Puls 120–135"],["REFEED-MEAL!","—","—","—","Pasta, Burger, Pizza — ok!"],["Leptin-Reset","—","—","—","1x alle 6 Tage optimal"]],
+   m:{s1:"More Clear 30g",s2:"Whey 25g",m1:"150g Quark + Beeren + Haferflocken",m2:"REFEED: Hähnchen + Pasta + Sauce",sn:"Casein 30g",ab:"150g Lachs + Salat + Brot",ca:"opt."}},
+  {tag:12,datum:"10.06.",typ:"KRAFT",ort:"Studio",bereich:"GK INTENSIV +",farbe:"#2ECC71",training:"Ganzkörper Intensiv — KOMPENSATION 4 Hoteltage",dauer:"70–75 Min",kb:"~450",zk:1900,zp:178,
+   ueb:[["Aufwärmen Laufband","—","5 Min","—","Gelenke aktivieren"],["Kniebeuge LH HEAVY","5","6","120s","85% 1RM — maximale Last"],["Bankdrücken LH","5","6","120s","Scapula fixiert — schwer"],["Kreuzheben","4","5","180s","Rücken neutral — schwerster Tag"],["Latzug breit","4","8","90s","Vollständige Streckung"],["Schulterdrücken LH","4","8","90s","Stehend, Kern fest"],["Hip Thrust LH","4","12","75s","Gesäß — Finisher"],["Plank + Side Plank","3","60s je","30s","Core-Abschluss"],["Abschluss Laufband","—","15 Min","—","Puls 140 — volle Cardio-Kompensation"]],
+   m:{s1:"More Clear 30g",s2:"Whey 25g",m1:"4 Eier + Räucherlachs + Rucola",m2:"200g Rindfleisch + Linsen + Paprika",sn:"30g Whey + Banane",ab:"200g Lachs + Spinat",ca:"opt."}},
+  {tag:13,datum:"11.06.",typ:"HOTEL",ort:"Hotelzimmer",bereich:"HOTEL PUSH",farbe:"#9B59B6",training:"🏨 Hotel — Push · Oberkörper Boden · 20 Min",dauer:"20 Min",kb:"~160",zk:1640,zp:155,
+   ueb:[["Warm-up: Armkreisen + Schultern","—","60s","—","Mobilisieren"],["Push-ups Standard","4","15","20s","Ellbogen 45° — Brust"],["Pike Push-ups (Schultern)","3","12","20s","Hüfte hoch — Schulterdrücken-Ersatz"],["Triceps Dips (Bettkante)","3","15","20s","Ellbogen eng am Körper"],["Push-up + Rotation","3","10","20s","Dreht zur Seite oben"],["Diamond Push-ups","3","10","20s","Enge Hände — Trizeps Fokus"],["Plank Schultertippen","3","30s","15s","Hände abwechselnd zur Schulter"]],
+   m:{s1:"Whey Shake (Reise-Sachet)",s2:"Protein Riegel oder Whey",m1:"Hotel: 2 Eier + Joghurt",m2:"Hotel: Hähnchen/Fisch + Salat",sn:"Nüsse oder Proteinriegel",ab:"Protein + Gemüse",ca:"opt."}},
+  {tag:14,datum:"12.06.",typ:"HOTEL",ort:"Hotelzimmer",bereich:"HOTEL BEINE",farbe:"#9B59B6",training:"🏨 Hotel — Beine & Gesäß · Boden · 20 Min",dauer:"20 Min",kb:"~180",zk:1640,zp:155,
+   ueb:[["Warm-up: Beinschwingen","—","60s","—","Hüfte locker"],["Bulgarian Split Squat (Bett)","4","12 je","20s","Hinteres Bein auf Bett"],["Glute Bridge einbeinig","4","15 je","15s","Boden, Fuß auf Bett"],["Jump Squats","3","15","20s","Weich landen"],["Donkey Kicks","3","15 je","15s","Gesäß isolieren"],["Side-lying Leg Raise","3","15 je","15s","Liegend seitlich"],["Wall Sit","3","45s","20s","Rücken gerade an Wand"]],
+   m:{s1:"Whey Shake (Reise-Sachet)",s2:"Protein Riegel oder Whey",m1:"Hotel: 2–3 Eier + Obst",m2:"Hotel: Hähnchen + Salat + Gemüse",sn:"Joghurt oder Nüsse",ab:"Fisch + Gemüse — kein KH",ca:"opt."}},
+  {tag:15,datum:"13.06.",typ:"HOTEL",ort:"Hotelzimmer",bereich:"HOTEL CORE",farbe:"#9B59B6",training:"🏨 Hotel — HIIT + Core · Boden · 20 Min",dauer:"20 Min",kb:"~200",zk:1640,zp:155,
+   ueb:[["Warm-up: High Knees","—","60s","—","Puls hoch"],["Burpees","4","10","20s","Volle Streckung"],["Mountain Climbers","3","40s","15s","Schnell"],["Plank Standard","3","45s","15s","Kern"],["Bicycle Crunch","3","20","15s","Ellbogen zum Knie"],["Reverse Crunch","3","15","15s","Beine gestreckt heben"],["Dead Bug","3","10 je","15s","Rücken am Boden halten"],["GEWICHT MESSEN!","—","—","—","Morgens nüchtern — notieren!"]],
+   m:{s1:"Whey Shake (Reise-Sachet)",s2:"Whey 25g",m1:"Hotel: Eier + Joghurt",m2:"Hotel: Hähnchen/Fisch + Salat",sn:"Nüsse oder Quark",ab:"Protein + Gemüse",ca:"opt."}},
+  {tag:16,datum:"14.06.",typ:"HOTEL",ort:"Hotelzimmer",bereich:"HOTEL GK",farbe:"#9B59B6",training:"🏨 Hotel — Ganzkörper Finisher · Boden · 20 Min",dauer:"20 Min",kb:"~190",zk:1640,zp:155,
+   ueb:[["Warm-up: Jumping Jacks","—","60s","—","Letzter Hoteltag!"],["Kniebeugen + Pulse","4","15+10","20s","Unten pulsen = Brennen"],["Push-up + Mountain Climber","4","8+20s","20s","Combo"],["Glute Bridge","3","20","15s","Hüfte hoch"],["Burpees","3","8","20s","Maximale Intensität"],["Plank to Push-up","3","10","20s","Fließend"],["Superman","3","15","15s","Boden — Rücken stärken"]],
+   m:{s1:"Whey Shake (Reise-Sachet)",s2:"Whey 25g",m1:"Hotel: 2 Eier + Joghurt + Beeren",m2:"Hotel: Hähnchen + Salat",sn:"Proteinriegel oder Nüsse",ab:"Protein + Gemüse",ca:"opt."}},
+  {tag:17,datum:"15.06.",typ:"KRAFT",ort:"Studio",bereich:"PULL + CIRCUIT",farbe:"#2ECC71",training:"RÜCKKEHR Studio — Pull + Circuit · Ausgleich Hoteltage",dauer:"65–70 Min",kb:"~430",zk:1880,zp:178,
+   ueb:[["Aufwärmen Rudergerät","—","5 Min","—","Rücken aktivieren nach Reise"],["Latzug breit","5","8","90s","Mehr als je — Endspurt!"],["Rudern Maschine schwer","5","8","75s","Max. Kontraktion"],["Klimmzüge (Assist)","4","6–8","90s","Endspurt"],["Bizeps Drop-Set","3","10+10+10","75s","Dreifach-Drop"],["Hammer Curls","3","12","60s","Brachialis"],["Circuit-Finisher 3 Runden:","—","—","—","Kein Pause zwischen Übungen!"],["— Kniebeugen KG","1","15","—","Circuit"],["— Push-ups","1","15","—","Circuit"],["— Plank","1","45s","60s","Rundenpause"]],
+   m:{s1:"More Clear 30g",s2:"Eiskaffee 25g",m1:"4 Eier + Räucherlachs + Rucola",m2:"200g Hähnchen + Linsen + Paprika",sn:"30g Whey + Banane",ab:"200g Lachs + Spargel",ca:"opt."}},
+  {tag:18,datum:"16.06.",typ:"KRAFT",ort:"Studio",bereich:"ABSCHLUSS",farbe:"#E74C3C",training:"ABSCHLUSS — Best of 18 — FINAL!",dauer:"55–60 Min",kb:"~400",zk:1880,zp:175,
+   ueb:[["Aufwärmen","—","5 Min","—","Letztes"],["Kniebeuge LH (beste!)","4","8","120s","Vergleich T1+T7"],["Bankdrücken LH","4","8","120s","Maximale Leistung"],["Latzug","4","8","90s","Volle Range"],["Hip Thrust LH","4","12","90s","Gesäß"],["HIIT-Finisher","—","15 Min","—","Alles rauslassen!"],["FINAL-MESSUNG!","—","—","—","Gewicht + Umfang + Foto!"]],
+   m:{s1:"More Clear 30g",s2:"Whey 25g",m1:"4 Eier + Räucherlachs + Tomate",m2:"200g Hähnchen + 150g Kartoffeln",sn:"30g Whey + Banane",ab:"200g Lachs + Spinat — ABSCHLUSS!",ca:"opt."}}
+];
+
+const SLOTS=[
+  {id:"s1",label:"Shake 1",zeit:"09:00",icon:"🥤",phase:"Fasten",c:"#E74C3C"},
+  {id:"s2",label:"Shake 2",zeit:"11:00",icon:"🥤",phase:"Fasten",c:"#E74C3C"},
+  {id:"m1",label:"Mahlzeit 1",zeit:"12:00",icon:"🍽",phase:"Essen",c:"#2ECC71"},
+  {id:"m2",label:"Mahlzeit 2",zeit:"15:00",icon:"🍽",phase:"Essen",c:"#2ECC71"},
+  {id:"sn",label:"Snack/Pre-WO",zeit:"17:00",icon:"🏋️",phase:"Essen",c:"#F39C12"},
+  {id:"ab",label:"Abend",zeit:"17:30",icon:"🐟",phase:"Essen",c:"#2ECC71"},
+  {id:"ca",label:"Casein opt.",zeit:"20:00",icon:"💊",phase:"Optional",c:"#888"}
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let state = {
+  done: {}, log: {}, sel: 0, tab: "training",
+  editSlot: null, pasteOpen: false, form: {b:"",k:"",p:"",paste:""}
+};
+
+function getDayIndex(){
+  const t=new Date();t.setHours(0,0,0,0);
+  const s=new Date(START);s.setHours(0,0,0,0);
+  return Math.floor((t-s)/86400000);
+}
+
+function lk(d,s){return `d${d}_${s}`;}
+
+function totals(idx){
+  let k=0,p=0;
+  SLOTS.forEach(sl=>{const e=state.log[lk(idx,sl.id)];if(e){k+=e.k||0;p+=e.p||0;}});
+  return{k,p};
+}
+
+function parseClaude(txt){
+  const k=txt.match(/[Kk]al[orien]*[:\s]+(\d+)/);
+  const p=txt.match(/[Pp]rotein[:\s]+(\d+)/);
+  const d=txt.match(/[Mm]ahlzeit[:\s]+([^\n·]+)/);
+  return{b:d?d[1].trim():txt.slice(0,60),k:k?parseInt(k[1]):0,p:p?parseInt(p[1]):0};
+}
+
+// ── STORAGE (localStorage — funktioniert offline + PWA) ─────────────────
+const LS_DONE = "wpf_done_v1";
+const LS_LOG  = "wpf_log_v1";
+
+function loadState(){
+  try{
+    const d=localStorage.getItem(LS_DONE);
+    if(d) state.done=Object.assign({},JSON.parse(d));
+  }catch(e){}
+  try{
+    const l=localStorage.getItem(LS_LOG);
+    if(l) state.log=Object.assign({},JSON.parse(l));
+  }catch(e){}
+  const idx=getDayIndex();
+  state.sel=Math.max(0,Math.min(17,idx>=0?idx:0));
+  render();
+}
+
+function saveDone(){
+  try{localStorage.setItem(LS_DONE,JSON.stringify(state.done));}catch(e){}
+}
+function saveLog(){
+  try{localStorage.setItem(LS_LOG,JSON.stringify(state.log));}catch(e){}
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function render(){
+  const todayIdx=getDayIndex();
+  const doneCount=Object.values(state.done).filter(Boolean).length;
+  const day=PLAN[state.sel];
+  const t=totals(state.sel);
+  const kPct=Math.min(100,Math.round((t.k/day.zk)*100));
+  const pPct=Math.min(100,Math.round((t.p/day.zp)*100));
+  const BG={KRAFT:"#0A1A0A",CARDIO:"#1A0E00",REST:"#0A0A1A",HOTEL:"#140A20"};
+
+  let html=`
+  <div class="header">
+    <div class="header-row">
+      <div><div class="title">WPF × 18 TAGE</div><div class="subtitle">30. Mai–16. Juni 2026 · Shakes 09+11 · Essen 12–18 Uhr</div></div>
+      <div><div class="count">${doneCount}/18</div><div class="count-label">Tage ✓</div></div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${(doneCount/18)*100}%"></div></div>
+    <div class="wpf-hint">⏰ Shake 1: 09:00 · Shake 2: 11:00 · Essfenster: 12:00–18:00</div>
+  </div>
+
+  <div class="strip" id="strip">`;
+  PLAN.forEach((p,i)=>{
+    const isT=i===todayIdx,iS=i===state.sel,iD=state.done[i],hF=totals(i).k>0;
+    html+=`<button class="day-btn${iS?" active":""}${iD?" done-btn":""}${isT?" today-btn":""}" 
+      style="border-color:${iS?p.farbe:isT?"#F39C12":iD?"#1A6B3C":"#2a2a2a"}"
+      onclick="selDay(${i})">
+      <div class="day-date">${p.datum}</div>
+      <div class="day-num" style="color:${iS?p.farbe:isT?"#F39C12":"#888"}">${p.tag}</div>
+      <div class="day-dot${iD?" green":hF?" orange":""}">${iD?"✓":hF?"●":"·"}</div>
+    </button>`;
+  });
+  html+=`</div>
+
+  <div class="tabs">
+    ${[["training","💪 Training"],["plan","🥩 Plan"],["log","📋 Log"],["kalender","📅 Kalender"],["wpf","⚡ WPF"]].map(([v,l])=>
+      `<button class="tab-btn${state.tab===v?" active":""}" onclick="setTab('${v}')">${l}</button>`
+    ).join("")}
+  </div>`;
+
+  // DAY CARD (shared)
+  const cardBG=BG[day.typ]||"#111";
+  const dayCard=`
+  <div class="day-card" style="background:${cardBG};border:1px solid ${day.farbe}44">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div>
+        <div class="day-meta">${day.datum} · TAG ${day.tag}${day.tag===todayIdx+1?" · HEUTE":""}</div>
+        <div class="day-title" style="color:${day.farbe}">${day.typ==="KRAFT"?"💪":day.typ==="CARDIO"?"🔥":"💙"} ${day.bereich}</div>
+        <div class="day-training">${day.training}</div>
+        <div class="day-tags">
+          <span class="tag" style="background:${day.farbe}22;color:${day.farbe}">${day.ort}</span>
+          <span class="tag" style="background:#1a1a1a;color:#aaa">${day.dauer}</span>
+          <span class="tag" style="background:#1a0e00;color:#F39C12">🔥 ${day.kb}</span>
+        </div>
+      </div>
+      <button class="done-toggle${state.done[state.sel]?" done":""}" onclick="toggleDone()">
+        ${state.done[state.sel]?"✓ Done":"Erledigt"}
+      </button>
+    </div>
+    ${t.k>0?`<div class="bars">
+      ${[{l:"Kalorien",v:t.k,z:day.zk,u:"kcal",pct:kPct,c:"#F39C12"},{l:"Protein",v:t.p,z:day.zp,u:"g",pct:pPct,c:"#2ECC71"}].map(b=>`
+        <div>
+          <div class="bar-label"><span>${b.l}</span><span class="bar-val" style="color:${b.c}">${b.v}/${b.z}${b.u}</span></div>
+          <div class="bar-bg"><div class="bar-fill" style="width:${b.pct}%;background:${b.pct>=100?"#E74C3C":b.c}"></div></div>
+          <div class="bar-pct">${b.pct}%</div>
+        </div>`).join("")}
+    </div>`:""}
+  </div>`;
+
+  // TRAINING TAB
+  if(state.tab==="training"){
+    html+=dayCard+`<div class="ex-section">
+      <div class="section-title" style="color:${day.farbe}">ÜBUNGEN · ${day.dauer}</div>
+      <div class="ex-table">
+        <div class="ex-header"><div class="ex-hcell">Übung</div><div class="ex-hcell">Sätze</div><div class="ex-hcell">Wdh.</div><div class="ex-hcell">Pause</div></div>
+        ${day.ueb.map((u,i)=>`<div class="ex-row">
+          <div><div class="ex-name">${u[0]}</div><div class="ex-hint">${u[4]}</div></div>
+          <div class="ex-cell ex-s">${u[1]}</div>
+          <div class="ex-cell ex-w">${u[2]}</div>
+          <div class="ex-cell ex-p">${u[3]}</div>
+        </div>`).join("")}
+      </div>
+    </div>`;
+  }
+
+  // PLAN TAB
+  else if(state.tab==="plan"){
+    html+=dayCard+`
+    <div class="wpf-box">
+      <div class="wpf-box-title">⚡ WPF TAG ${day.tag}</div>
+      <div class="wpf-grid">
+        <div class="wpf-cell"><div class="wpf-cell-label" style="color:#E74C3C">FASTEN</div><div class="wpf-cell-time">18:00–12:00</div></div>
+        <div class="wpf-cell"><div class="wpf-cell-label" style="color:#F39C12">SHAKES</div><div class="wpf-cell-time">09:00+11:00</div></div>
+        <div class="wpf-cell"><div class="wpf-cell-label" style="color:#2ECC71">ESSEN</div><div class="wpf-cell-time">12:00–18:00</div></div>
+      </div>
+    </div>`;
+    SLOTS.forEach(sl=>{
+      const plan=day.m[sl.id]||"";
+      const entry=state.log[lk(state.sel,sl.id)];
+      html+=`<div class="slot" style="background:${entry?"#0d1a10":"#111"};border:1px solid ${entry?sl.c+"44":"#222"}">
+        <div class="slot-inner">
+          <div class="slot-icon">${sl.icon}</div>
+          <div class="slot-info">
+            <div class="slot-header">
+              <span class="slot-name" style="color:${sl.c}">${sl.label}</span>
+              <span class="slot-time">${sl.zeit}</span>
+              <span class="slot-phase" style="background:${sl.c}22;color:${sl.c}">${sl.phase}</span>
+            </div>
+            <div class="slot-plan">📋 ${plan}</div>
+            ${entry?`<div class="slot-entry">✅ ${entry.b}</div>`:""}
+          </div>
+          ${entry?`<div class="slot-vals"><div class="slot-kcal">${entry.k}</div><div class="slot-prot">${entry.p}g P</div></div>`:""}
+        </div>
+        <div class="slot-actions">
+          <button class="slot-action" onclick="openEdit('${sl.id}');setTab('log')">${entry?"✏️ Bearb.":"➕ Gegessen?"}</button>
+          ${entry?`<button class="slot-delete" onclick="delEntry('${sl.id}')">✕</button>`:""}
+        </div>
+      </div>`;
+    });
+  }
+
+  // LOG TAB
+  else if(state.tab==="log"){
+    html+=dayCard+`
+    <div class="foto-hint">
+      <div class="foto-hint-title">📸 FOTO-ANALYSE</div>
+      <div class="foto-hint-text">Foto im Chat → <code>"Analysiere: Kalorien + Protein"</code> → Antwort unten einfügen</div>
+    </div>`;
+    SLOTS.forEach(sl=>{
+      const entry=state.log[lk(state.sel,sl.id)];
+      html+=`<div class="slot" style="background:${entry?"#0d1a10":"#111"};border:1px solid ${entry?sl.c+"55":"#222"}">
+        <div class="slot-inner">
+          <span class="slot-icon">${sl.icon}</span>
+          <div class="slot-info">
+            <div class="slot-header"><span class="slot-name" style="color:${sl.c}">${sl.label}</span><span class="slot-time">${sl.zeit}</span></div>
+            ${entry?`<div class="slot-entry">${entry.b}</div>`:`<div style="font-size:8px;color:#444;font-style:italic;margin-top:2px">${(day.m[sl.id]||"").slice(0,40)}…</div>`}
+          </div>
+          ${entry?`<div class="slot-vals"><div class="slot-kcal">${entry.k} kcal</div><div class="slot-prot">${entry.p}g P</div>${entry.t?`<div class="slot-time-logged">${entry.t}</div>`:""}</div>`:""}
+        </div>
+        <div class="slot-actions">
+          <button class="slot-action" onclick="openEdit('${sl.id}')">${entry?"✏️ Bearbeiten":"➕ Eintragen"}</button>
+          ${entry?`<button class="slot-delete" onclick="delEntry('${sl.id}')">✕</button>`:""}
+        </div>
+      </div>`;
+    });
+  }
+
+  // KALENDER TAB
+  else if(state.tab==="kalender"){
+    html+=`<div class="cal-section">`;
+    [{monat:"Mai 2026",tage:31,start:3,pre:"05"},{monat:"Juni 2026",tage:30,start:0,pre:"06"}].forEach(({monat,tage,start,pre})=>{
+      html+=`<div class="cal-card"><div class="cal-month">${monat}</div>
+      <div class="cal-weekdays">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(d=>`<div class="cal-wd">${d}</div>`).join("")}</div>
+      <div class="cal-grid">
+      ${"<div></div>".repeat(start)}`;
+      for(let d=1;d<=tage;d++){
+        const ds=String(d).padStart(2,"0");
+        const pIdx=PLAN.findIndex(p=>p.datum===`${ds}.${pre.slice(-2)}.`);
+        const hasPlan=pIdx>=0;const p=hasPlan?PLAN[pIdx]:null;
+        const isToday=hasPlan&&pIdx===todayIdx;const isSel=hasPlan&&pIdx===state.sel;
+        const isDone=hasPlan&&state.done[pIdx];const hasFood=hasPlan&&totals(pIdx).k>0;
+        let cls="cal-day"+(hasPlan?" has-plan":"")+(isSel?" is-sel":"")+(isDone?" is-done":"")+(isToday?" is-today":"")+(hasPlan?"":" no-plan");
+        let bord=isToday?"#F39C12":isSel?p?.farbe:isDone?"#2ECC71":hasPlan?"#2a2a2a":"transparent";
+        html+=`<div class="${cls}" style="border-color:${bord}"${hasPlan?` onclick="selDay(${pIdx});setTab('training')"`:""}>
+          <div class="cal-day-num" style="color:${isToday?"#F39C12":hasPlan?p.farbe:"#444"}">${d}</div>
+          ${hasPlan?`<div class="cal-day-lbl">${p.bereich.slice(0,3)}</div>`:""}
+          <div class="cal-day-mark">${isDone?"<span style='color:#2ECC71'>✓</span>":hasFood?"<span style='color:#F39C12'>●</span>":""}</div>
+        </div>`;
+      }
+      html+=`</div></div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // WPF TAB
+  else if(state.tab==="wpf"){
+    html+=`<div class="wpf-tab">
+    <div class="wpf-intro">
+      <div class="wpf-intro-title">⚡ WOLFS PROTEIN FASTEN</div>
+      <div class="wpf-intro-text">Methode von <strong>Christian Wolf / More Nutrition</strong>. 18:6-Fasten + 2 Protein-Shakes im Fastenfenster = kein Muskelabbau, automatisches Defizit, kein Hunger.</div>
+    </div>
+    ${[
+      {icon:"⏱",t:"18:6 Fastenfenster",c:"#E74C3C",txt:"18h fasten / 6h essen (12–18 Uhr). Automatisches Defizit ohne Tracken."},
+      {icon:"🥤",t:"2 Shakes im Fasten",c:"#F39C12",txt:"09:00 + 11:00 Uhr. Whey Isolat je 25–30g, <120 kcal, kein Zucker, keine KH."},
+      {icon:"🍗",t:"Protein bei jeder Mahlzeit",c:"#2ECC71",txt:"2,1g/kg = ~168g/Tag. Thermischer Effekt: +30% Kalorienverbrauch."},
+      {icon:"🚫",t:"Kein Zucker",c:"#E67E22",txt:"Kein Haushaltszucker. Stevia/Erythrit und Zerup erlaubt."},
+      {icon:"🥔",t:"KH timen",c:"#3498DB",txt:"KH vor Training. Abends (17:30): nur Protein + Gemüse. Kartoffeln statt Reis."},
+      {icon:"💧",t:"2,5 Liter Wasser täglich",c:"#1ABC9C",txt:"Kaffee und Tee im Fasten ok. 500ml vor Mahlzeit = weniger Hunger."},
+    ].map(item=>`<div class="wpf-item" style="border:1px solid ${item.c}33">
+      <div class="wpf-item-title" style="color:${item.c}">${item.icon} ${item.t}</div>
+      <div class="wpf-item-text">${item.txt}</div>
+    </div>`).join("")}
+    <div class="wpf-measure">
+      <div class="wpf-measure-title">📊 MESSPUNKTE</div>
+      ${[[1,"T1 · 30.05.","Ausgangsmessung"],[5,"T5 · 03.06.","1. Kontrolle"],[9,"T9 · 07.06.","Halbzeit"],[15,"T15 · 13.06.","Endspurt"],[18,"T18 · 16.06.","FINAL"]].map(([tg,d,l])=>`
+        <div class="measure-row" onclick="selDay(${tg-1});setTab('training')">
+          <span class="measure-day" style="color:${state.done[tg-1]?"#2ECC71":"#aaa"}">${state.done[tg-1]?"✓ ":""}${d}</span>
+          <span class="measure-label">${l}</span>
+        </div>`).join("")}
+    </div>
+    </div>`;
+  }
+
+  // EDIT MODAL
+  if(state.editSlot){
+    const sl=SLOTS.find(s=>s.id===state.editSlot);
+    const day2=PLAN[state.sel];
+    html+=`<div class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" style="color:${sl.c}">${sl.icon} ${sl.label} · TAG ${day2.tag} · ${sl.zeit}</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="plan-ref"><div class="plan-ref-label">📋 PLAN</div><div class="plan-ref-text">${day2.m[sl.id]}</div></div>
+      <button class="paste-btn${state.pasteOpen?" open":""}" onclick="togglePaste()">📋 Claude-Analyse einfügen</button>
+      ${state.pasteOpen?`
+        <textarea class="paste-area" id="pasteArea" placeholder='Mahlzeit: 200g Hähnchen · Kalorien: 520 · Protein: 52g'>${state.form.paste}</textarea>
+        <button class="paste-apply" onclick="applyPaste()">✓ Übernehmen</button>
+        <div style="height:8px"></div>`:""}
+      <div class="divider">— oder manuell —</div>
+      <div class="field-label">Was gegessen?</div>
+      <input class="field-input" id="fB" value="${state.form.b}" placeholder="z.B. 200g Hähnchen + Kartoffeln">
+      <div class="field-label">Kalorien (kcal)</div>
+      <input class="field-input" id="fK" type="number" value="${state.form.k}" placeholder="z.B. 520">
+      <div class="field-label">Protein (g)</div>
+      <input class="field-input" id="fP" type="number" value="${state.form.p}" placeholder="z.B. 52">
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal()">Abbrechen</button>
+        <button class="btn-save" onclick="saveEntry()">Speichern</button>
+      </div>
+    </div></div>`;
+  }
+
+  document.getElementById("app").innerHTML=html;
+
+  // scroll strip to selected
+  setTimeout(()=>{
+    const strip=document.getElementById("strip");
+    if(strip){const btn=strip.children[state.sel];if(btn)btn.scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"});}
+  },50);
+}
+
+// ── ACTIONS ────────────────────────────────────────────────────────────────
+function selDay(i){state.sel=i;render();}
+function setTab(t){state.tab=t;render();}
+
+function toggleDone(){
+  state.done[state.sel]=!state.done[state.sel];
+  saveDone();render();
+}
+
+function openEdit(sid){
+  const e=state.log[lk(state.sel,sid)]||{};
+  state.editSlot=sid;state.pasteOpen=false;
+  state.form={b:e.b||"",k:e.k||"",p:e.p||"",paste:""};
+  render();
+}
+
+function closeModal(){state.editSlot=null;render();}
+
+function togglePaste(){
+  if(state.pasteOpen){const el=document.getElementById("pasteArea");if(el)state.form.paste=el.value;}
+  state.pasteOpen=!state.pasteOpen;render();
+}
+
+function applyPaste(){
+  const el=document.getElementById("pasteArea");
+  if(el)state.form.paste=el.value;
+  const r=parseClaude(state.form.paste);
+  state.form.b=r.b||state.form.b;
+  state.form.k=r.k||state.form.k;
+  state.form.p=r.p||state.form.p;
+  state.pasteOpen=false;render();
+}
+
+function saveEntry(){
+  // Lese Werte aus DOM bevor render() das Modal zerstoert
+  var bEl=document.getElementById("fB");
+  var kEl=document.getElementById("fK");
+  var pEl=document.getElementById("fP");
+  var bv=(bEl&&bEl.value.trim())?bEl.value.trim():state.form.b;
+  var kv=parseInt((kEl&&kEl.value)?kEl.value:String(state.form.k))||0;
+  var pv=parseInt((pEl&&pEl.value)?pEl.value:String(state.form.p))||0;
+  if(!bv&&kv===0&&pv===0){state.editSlot=null;render();return;}
+  // Merge: alle bestehenden Eintraege behalten, nur diesen Slot updaten
+  var key=lk(state.sel,state.editSlot);
+  var newLog={};
+  Object.keys(state.log).forEach(function(k2){newLog[k2]=state.log[k2];});
+  newLog[key]={b:bv,k:kv,p:pv,t:new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})};
+  state.log=newLog;
+  state.editSlot=null;
+  saveLog();
+  render();
+}
+
+function delEntry(sid){
+  delete state.log[lk(state.sel,sid)];
+  saveLog();render();
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+loadState();
+
+// Service Worker registrieren (PWA Offline)
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+</script>
+</body>
+</html>
