@@ -239,8 +239,8 @@ const SLOTS=[
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 let state = {
-  done: {}, log: {}, sel: 0, tab: "training",
-  editSlot: null, pasteOpen: false, form: {b:"",k:"",p:"",paste:""}
+  done: {}, log: {}, sets: {}, cardio: {}, uebSets: {}, sel: 0, tab: "training",
+  editSlot: null, pasteOpen: false, form: {b:"",k:"",p:"",f:"",kh:"",bal:"",vitC:"",eisen:"",mag:"",paste:""}
 };
 
 function getDayIndex(){
@@ -252,9 +252,17 @@ function getDayIndex(){
 function lk(d,s){return `d${d}_${s}`;}
 
 function totals(idx){
-  let k=0,p=0;
-  SLOTS.forEach(sl=>{const e=state.log[lk(idx,sl.id)];if(e){k+=e.k||0;p+=e.p||0;}});
-  return{k,p};
+  let k=0,p=0,f=0,kh=0,bal=0,zuk=0,nat=0,vitC=0,vitD=0,vitB12=0,eisen=0,kal=0,mag=0;
+  SLOTS.forEach(sl=>{
+    const e=state.log[lk(idx,sl.id)];
+    if(e){
+      k+=e.k||0;p+=e.p||0;f+=e.f||0;kh+=e.kh||0;
+      bal+=e.bal||0;zuk+=e.zuk||0;nat+=e.nat||0;
+      vitC+=e.vitC||0;vitD+=e.vitD||0;vitB12+=e.vitB12||0;
+      eisen+=e.eisen||0;kal+=e.kal||0;mag+=e.mag||0;
+    }
+  });
+  return{k,p,f,kh,bal,zuk,nat,vitC,vitD,vitB12,eisen,kal,mag};
 }
 
 function parseClaude(txt){
@@ -262,6 +270,37 @@ function parseClaude(txt){
   const p=txt.match(/[Pp]rotein[:\s]+(\d+)/);
   const d=txt.match(/[Mm]ahlzeit[:\s]+([^\n·]+)/);
   return{b:d?d[1].trim():txt.slice(0,60),k:k?parseInt(k[1]):0,p:p?parseInt(p[1]):0};
+}
+
+
+// Tagesbedarf 80kg Mann
+const TAGESBEDARF = {
+  kcal:1900, protein:175, fett:65, kh:190,
+  ballaststoffe:30, zucker:50, natrium:2300,
+  vitC:100, vitD:20, vitB12:4, eisen:10, kalzium:1000, magnesium:350
+};
+
+
+// Übungen die als Cardio erkannt werden
+const CARDIO_UEBUNGEN = ["laufband","bike","rudergerät","laufen","spaziergang","radfahren","schwimmen",
+  "hiit","cardio","warm-up","aufwärmen","cool-down","stretching","jumping","mountain","high knees",
+  "burpees","jump","sprint","intervall","abschluss"];
+
+function isCardioUeb(name){
+  var n=name.toLowerCase();
+  return CARDIO_UEBUNGEN.some(function(k){return n.indexOf(k)>=0;});
+}
+
+function getUebSets(dayIdx, uebName){
+  var key="s_"+dayIdx+"_"+uebName.replace(/\s+/g,"_").toLowerCase();
+  return state.uebSets[key]||[];
+}
+
+function saveUebSets(dayIdx, uebName, sets){
+  var key="s_"+dayIdx+"_"+uebName.replace(/\s+/g,"_").toLowerCase();
+  if(!state.uebSets) state.uebSets={};
+  state.uebSets[key]=sets;
+  try{localStorage.setItem("wpf_uebsets_v1",JSON.stringify(state.uebSets));}catch(e){}
 }
 
 // ── STORAGE (localStorage — funktioniert offline + PWA) ─────────────────
@@ -276,6 +315,18 @@ function loadState(){
   try{
     const l=localStorage.getItem(LS_LOG);
     if(l) state.log=Object.assign({},JSON.parse(l));
+  }catch(e){}
+  try{
+    const s=localStorage.getItem("wpf_sets_v1");
+    if(s) state.sets=Object.assign({},JSON.parse(s));
+  }catch(e){}
+  try{
+    const c=localStorage.getItem("wpf_cardio_v1");
+    if(c) state.cardio=Object.assign({},JSON.parse(c));
+  }catch(e){}
+  try{
+    const us=localStorage.getItem("wpf_uebsets_v1");
+    if(us) state.uebSets=Object.assign({},JSON.parse(us));
   }catch(e){}
   const idx=getDayIndex();
   state.sel=Math.max(0,Math.min(17,idx>=0?idx:0));
@@ -352,25 +403,170 @@ function render(){
         <div>
           <div class="bar-label"><span>${b.l}</span><span class="bar-val" style="color:${b.c}">${b.v}/${b.z}${b.u}</span></div>
           <div class="bar-bg"><div class="bar-fill" style="width:${b.pct}%;background:${b.pct>=100?"#E74C3C":b.c}"></div></div>
-          <div class="bar-pct">${b.pct}%</div>
+          <div class="bar-pct">${b.pct}% Tagesziel</div>
+        </div>`).join("")}
+    </div>
+    ${t.f>0||t.kh>0?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px">
+      ${[{l:"Fett",v:t.f,z:TAGESBEDARF.fett,u:"g",c:"#E67E22"},
+         {l:"KH",v:t.kh,z:TAGESBEDARF.kh,u:"g",c:"#3498DB"},
+         {l:"Ballaststoffe",v:t.bal,z:TAGESBEDARF.ballaststoffe,u:"g",c:"#1ABC9C"}].map(b=>`
+        <div style="background:#0d0d0d;border-radius:6px;padding:5px 6px;text-align:center">
+          <div style="font-size:8px;color:#888">${b.l}</div>
+          <div style="font-size:10px;font-weight:700;color:${b.c}">${b.v}g</div>
+          <div style="font-size:7px;color:#666">${Math.round(b.v/b.z*100)}% TB</div>
         </div>`).join("")}
     </div>`:""}
+    ${t.vitC>0||t.eisen>0||t.mag>0?`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:4px">
+      ${[{l:"Vit. C",v:t.vitC,z:TAGESBEDARF.vitC,u:"mg",c:"#F1C40F"},
+         {l:"Eisen",v:t.eisen,z:TAGESBEDARF.eisen,u:"mg",c:"#E74C3C"},
+         {l:"Magnesium",v:t.mag,z:TAGESBEDARF.magnesium,u:"mg",c:"#9B59B6"}].map(b=>`
+        <div style="background:#0d0d0d;border-radius:6px;padding:5px 6px;text-align:center">
+          <div style="font-size:8px;color:#888">${b.l}</div>
+          <div style="font-size:10px;font-weight:700;color:${b.c}">${b.v}${b.u}</div>
+          <div style="font-size:7px;color:#666">${Math.round(b.v/b.z*100)}% TB</div>
+        </div>`).join("")}
+    </div>`:""}
+    `:""}
   </div>`;
 
   // TRAINING TAB
   if(state.tab==="training"){
     html+=dayCard+`<div class="ex-section">
       <div class="section-title" style="color:${day.farbe}">ÜBUNGEN · ${day.dauer}</div>
-      <div class="ex-table">
-        <div class="ex-header"><div class="ex-hcell">Übung</div><div class="ex-hcell">Sätze</div><div class="ex-hcell">Wdh.</div><div class="ex-hcell">Pause</div></div>
-        ${day.ueb.map((u,i)=>`<div class="ex-row">
-          <div><div class="ex-name">${u[0]}</div><div class="ex-hint">${u[4]}</div></div>
-          <div class="ex-cell ex-s">${u[1]}</div>
-          <div class="ex-cell ex-w">${u[2]}</div>
-          <div class="ex-cell ex-p">${u[3]}</div>
+      ${day.ueb.map((u,i)=>{
+        var isCardio=isCardioUeb(u[0]);
+        var sets=getUebSets(state.sel, u[0]);
+        var bg=i%2===0?"#0d1a0d":"#0a150a";
+        var totalVol=sets.reduce(function(a,s){return a+(s.kg||0)*(s.wdh||0);},0);
+        var totalKm=sets.reduce(function(a,s){return a+(parseFloat(s.km)||0);},0);
+        return `<div style="background:${bg};border:1px solid #1a2a1a;border-radius:8px;margin-bottom:4px;overflow:hidden">
+          <!-- Übungs-Header -->
+          <div style="display:grid;grid-template-columns:1fr 40px 50px 38px;gap:4px;padding:7px 8px;align-items:start">
+            <div>
+              <div class="ex-name">${u[0]}</div>
+              <div class="ex-hint">${u[4]}</div>
+              ${sets.length>0?(isCardio?
+                `<div style="font-size:8px;color:#F39C12;margin-top:2px">📍 ${totalKm.toFixed(1)}km total</div>`:
+                `<div style="font-size:8px;color:#2ECC71;margin-top:2px">💪 ${sets.length} Sätze · ${totalVol}kg Vol.</div>`
+              ):""}
+            </div>
+            <div class="ex-cell ex-s">${u[1]}</div>
+            <div class="ex-cell ex-w">${u[2]}</div>
+            <div class="ex-cell ex-p">${u[3]}</div>
+          </div>
+          <!-- Eingetragene Sätze -->
+          ${sets.length>0?`<div style="border-top:1px solid #1a1a1a">
+            ${isCardio?
+              `<div style="display:grid;grid-template-columns:30px 1fr 60px 55px 50px;background:#141414;padding:3px 8px;gap:4px">
+                <div style="font-size:7px;color:#666">#</div>
+                <div style="font-size:7px;color:#666">Art</div>
+                <div style="font-size:7px;color:#666;text-align:center">km</div>
+                <div style="font-size:7px;color:#666;text-align:center">min</div>
+                <div style="font-size:7px;color:#666;text-align:right">min/km</div>
+              </div>
+              ${sets.map(function(s,si){return `<div style="display:grid;grid-template-columns:30px 1fr 60px 55px 50px;padding:4px 8px;gap:4px;align-items:center;border-top:1px solid #111">
+                <div style="font-size:9px;color:#888">${si+1}</div>
+                <div style="font-size:9px;color:#ddd">${s.art||""}</div>
+                <div style="font-size:10px;font-weight:700;color:#F39C12;text-align:center">${s.km}km</div>
+                <div style="font-size:10px;color:#2ECC71;text-align:center">${s.min}min</div>
+                <div style="font-size:9px;color:#888;text-align:right">${s.km>0?Math.round(s.min/s.km*10)/10:"—"}</div>
+              </div>`;}).join("")}` :
+              `<div style="display:grid;grid-template-columns:30px 60px 50px 1fr;background:#141414;padding:3px 8px;gap:4px">
+                <div style="font-size:7px;color:#666">Satz</div>
+                <div style="font-size:7px;color:#666;text-align:center">Gewicht</div>
+                <div style="font-size:7px;color:#666;text-align:center">Wdh.</div>
+                <div style="font-size:7px;color:#666;text-align:right">Volumen</div>
+              </div>
+              ${sets.map(function(s,si){return `<div style="display:grid;grid-template-columns:30px 60px 50px 1fr;padding:4px 8px;gap:4px;align-items:center;border-top:1px solid #111">
+                <div style="font-size:9px;color:#888">${si+1}</div>
+                <div style="font-size:11px;font-weight:700;color:#F39C12;text-align:center">${s.kg}kg</div>
+                <div style="font-size:11px;color:#2ECC71;text-align:center">${s.wdh}×</div>
+                <div style="font-size:9px;color:#888;text-align:right">${(s.kg*s.wdh)}kg</div>
+              </div>`;}).join("")}`
+            }
+          </div>`:""}
+          <!-- Eingabe-Zeile -->
+          <div style="border-top:1px solid #1a1a1a;padding:6px 8px;background:#0a0a0a">
+            ${isCardio?
+              `<div style="display:grid;grid-template-columns:1fr 55px 50px 36px;gap:4px">
+                <input placeholder="Art (Laufen, Bike...)" onchange="void(0)"
+                  style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:5px 6px;font-size:9px;font-family:inherit"
+                  id="ci_art_${i}">
+                <input type="number" step="0.1" placeholder="km"
+                  style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:5px 6px;font-size:9px;text-align:center;font-family:inherit"
+                  id="ci_km_${i}">
+                <input type="number" placeholder="Min"
+                  style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:5px 6px;font-size:9px;text-align:center;font-family:inherit"
+                  id="ci_min_${i}">
+                <button onclick="addUebCardio(${state.sel},'${u[0].replace(/'/g,"\'")}',${i})"
+                  style="background:#F39C12;border:none;border-radius:5px;color:#000;font-weight:700;font-size:12px;cursor:pointer">+</button>
+              </div>` :
+              `<div style="display:grid;grid-template-columns:70px 55px 36px;gap:4px">
+                <input type="number" step="0.5" placeholder="kg"
+                  style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:5px 6px;font-size:9px;text-align:center;font-family:inherit"
+                  id="ki_kg_${i}">
+                <input type="number" placeholder="Wdh."
+                  style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:5px 6px;font-size:9px;text-align:center;font-family:inherit"
+                  id="ki_wdh_${i}">
+                <button onclick="addUebKraft(${state.sel},'${u[0].replace(/'/g,"\'")}',${i})"
+                  style="background:#2ECC71;border:none;border-radius:5px;color:#000;font-weight:700;font-size:12px;cursor:pointer">+</button>
+              </div>`
+            }
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+    ${day.typ!=="REST"&&day.typ!=="HOTEL"?`
+    <div style="padding:8px 10px 0">
+      <div style="font-size:10px;font-weight:700;color:#F39C12;margin-bottom:5px;letter-spacing:.5px">🏋️ SATZ-TRACKER</div>
+      <div style="background:#111;border-radius:9px;border:1px solid #222;overflow:hidden">
+        <div style="background:#141414;padding:5px 8px;display:grid;grid-template-columns:1fr 80px 80px 60px;gap:4px">
+          <div style="font-size:8px;color:#666;font-weight:700">Übung</div>
+          <div style="font-size:8px;color:#666;font-weight:700;text-align:center">Gewicht</div>
+          <div style="font-size:8px;color:#666;font-weight:700;text-align:center">Wdh.</div>
+          <div style="font-size:8px;color:#666;font-weight:700;text-align:center">Satz</div>
+        </div>
+        ${(state.sets[state.sel]||[]).map((s,i)=>`
+        <div style="display:grid;grid-template-columns:1fr 80px 80px 60px;gap:4px;padding:5px 8px;background:${i%2===0?"#0d1a0d":"#0a150a"};border-top:1px solid #161616;align-items:center">
+          <div style="font-size:9px;color:#ddd">${s.ueb}</div>
+          <div style="font-size:10px;font-weight:700;color:#F39C12;text-align:center">${s.kg}kg</div>
+          <div style="font-size:10px;color:#2ECC71;text-align:center">${s.wdh}×</div>
+          <div style="font-size:9px;color:#888;text-align:center">${s.satz}</div>
         </div>`).join("")}
+        <div style="padding:8px;border-top:1px solid #1a1a1a">
+          <div style="display:grid;grid-template-columns:1fr 70px 60px auto;gap:4px">
+            <input id="setUeb" placeholder="Übung" style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:5px;color:#fff;padding:6px 7px;font-size:9px;font-family:inherit">
+            <input id="setKg" type="number" placeholder="kg" style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:5px;color:#fff;padding:6px 7px;font-size:9px;font-family:inherit;text-align:center">
+            <input id="setWdh" type="number" placeholder="Wdh." style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:5px;color:#fff;padding:6px 7px;font-size:9px;font-family:inherit;text-align:center">
+            <button onclick="addSet()" style="background:#2ECC71;border:none;border-radius:5px;color:#000;padding:6px 10px;font-weight:700;font-size:10px;cursor:pointer">+</button>
+          </div>
+        </div>
       </div>
-    </div>`;
+    </div>`:""}
+    ${day.typ==="CARDIO"||day.typ==="HOTEL"?`
+    <div style="padding:8px 10px 0">
+      <div style="font-size:10px;font-weight:700;color:#F39C12;margin-bottom:5px;letter-spacing:.5px">🏃 CARDIO TRACKING</div>
+      <div style="background:#111;border-radius:9px;border:1px solid #222;overflow:hidden">
+        ${(state.cardio[state.sel]||[]).map((c,i)=>`
+        <div style="display:grid;grid-template-columns:1fr 70px 70px 60px;gap:4px;padding:5px 8px;background:${i%2===0?"#1a0e00":"#150b00"};border-top:1px solid #161616;align-items:center">
+          <div style="font-size:9px;color:#ddd">${c.art}</div>
+          <div style="font-size:10px;font-weight:700;color:#F39C12;text-align:center">${c.km}km</div>
+          <div style="font-size:10px;color:#2ECC71;text-align:center">${c.min}min</div>
+          <div style="font-size:9px;color:#888;text-align:center">Z${c.zone}</div>
+        </div>`).join("")}
+        <div style="padding:8px;border-top:1px solid #1a1a1a">
+          <div style="display:grid;grid-template-columns:1fr 55px 55px 45px auto;gap:4px">
+            <input id="cArt" placeholder="Art (Laufen...)" style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:5px;color:#fff;padding:6px 7px;font-size:9px;font-family:inherit">
+            <input id="cKm" type="number" step="0.1" placeholder="km" style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:5px;color:#fff;padding:6px 7px;font-size:9px;text-align:center;font-family:inherit">
+            <input id="cMin" type="number" placeholder="Min" style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:5px;color:#fff;padding:6px 7px;font-size:9px;text-align:center;font-family:inherit">
+            <input id="cZone" type="number" min="1" max="5" placeholder="Z" style="background:#0d0d0d;border:1px solid #2a2a2a;border-radius:5px;color:#fff;padding:6px 7px;font-size:9px;text-align:center;font-family:inherit">
+            <button onclick="addCardio()" style="background:#F39C12;border:none;border-radius:5px;color:#000;padding:6px 10px;font-weight:700;font-size:10px;cursor:pointer">+</button>
+          </div>
+          <div style="font-size:8px;color:#666;margin-top:4px">Zone 1=sehr leicht · 2=moderat · 3=zügig · 4=hart · 5=max</div>
+        </div>
+      </div>
+    </div>`:""}
+    `;
   }
 
   // PLAN TAB
@@ -542,7 +738,8 @@ function toggleDone(){
 function openEdit(sid){
   const e=state.log[lk(state.sel,sid)]||{};
   state.editSlot=sid;state.pasteOpen=false;
-  state.form={b:e.b||"",k:e.k||"",p:e.p||"",paste:""};
+  state.form={b:e.b||"",k:e.k||"",p:e.p||"",f:e.f||"",kh:e.kh||"",
+    bal:e.bal||"",vitC:e.vitC||"",eisen:e.eisen||"",mag:e.mag||"",paste:""};
   render();
 }
 
@@ -574,9 +771,22 @@ function saveEntry(){
   if(!bv&&kv===0&&pv===0){state.editSlot=null;render();return;}
   // Merge: alle bestehenden Eintraege behalten, nur diesen Slot updaten
   var key=lk(state.sel,state.editSlot);
+  var fvEl=document.getElementById("fF");
+  var khEl=document.getElementById("fKH");
+  var balEl=document.getElementById("fBAL");
+  var vitCEl=document.getElementById("fVITC");
+  var eisEl=document.getElementById("fEIS");
+  var magEl=document.getElementById("fMAG");
+  var fv=parseInt((fvEl&&fvEl.value)?fvEl.value:state.form.f)||0;
+  var khv=parseInt((khEl&&khEl.value)?khEl.value:state.form.kh)||0;
+  var balv=parseFloat((balEl&&balEl.value)?balEl.value:state.form.bal)||0;
+  var vitCv=parseFloat((vitCEl&&vitCEl.value)?vitCEl.value:state.form.vitC)||0;
+  var eisv=parseFloat((eisEl&&eisEl.value)?eisEl.value:state.form.eisen)||0;
+  var magv=parseFloat((magEl&&magEl.value)?magEl.value:state.form.mag)||0;
   var newLog={};
   Object.keys(state.log).forEach(function(k2){newLog[k2]=state.log[k2];});
-  newLog[key]={b:bv,k:kv,p:pv,t:new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})};
+  newLog[key]={b:bv,k:kv,p:pv,f:fv,kh:khv,bal:balv,vitC:vitCv,eisen:eisv,mag:magv,
+    t:new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})};
   state.log=newLog;
   state.editSlot=null;
   saveLog();
@@ -586,6 +796,63 @@ function saveEntry(){
 function delEntry(sid){
   delete state.log[lk(state.sel,sid)];
   saveLog();render();
+}
+
+function addUebKraft(dayIdx, uebName, rowIdx){
+  var kgEl=document.getElementById("ki_kg_"+rowIdx);
+  var wdhEl=document.getElementById("ki_wdh_"+rowIdx);
+  if(!kgEl||!wdhEl) return;
+  var kg=parseFloat(kgEl.value)||0;
+  var wdh=parseInt(wdhEl.value)||0;
+  if(kg===0&&wdh===0) return;
+  var sets=getUebSets(dayIdx,uebName);
+  sets.push({kg:kg,wdh:wdh});
+  saveUebSets(dayIdx,uebName,sets);
+  kgEl.value="";wdhEl.value="";
+  render();
+}
+
+function addUebCardio(dayIdx, uebName, rowIdx){
+  var artEl=document.getElementById("ci_art_"+rowIdx);
+  var kmEl=document.getElementById("ci_km_"+rowIdx);
+  var minEl=document.getElementById("ci_min_"+rowIdx);
+  if(!kmEl) return;
+  var art=(artEl&&artEl.value.trim())||uebName;
+  var km=parseFloat(kmEl.value)||0;
+  var min=parseInt(minEl.value)||0;
+  if(km===0&&min===0) return;
+  var sets=getUebSets(dayIdx,uebName);
+  sets.push({art:art,km:km,min:min});
+  saveUebSets(dayIdx,uebName,sets);
+  if(artEl)artEl.value="";kmEl.value="";if(minEl)minEl.value="";
+  render();
+}
+
+function addSet(){
+  var ueb=document.getElementById("setUeb");
+  var kg=document.getElementById("setKg");
+  var wdh=document.getElementById("setWdh");
+  if(!ueb||!ueb.value.trim()) return;
+  if(!state.sets[state.sel]) state.sets[state.sel]=[];
+  var satzNr=state.sets[state.sel].filter(function(s){return s.ueb===ueb.value.trim();}).length+1;
+  state.sets[state.sel].push({ueb:ueb.value.trim(),kg:parseFloat(kg.value)||0,wdh:parseInt(wdh.value)||0,satz:satzNr});
+  try{localStorage.setItem("wpf_sets_v1",JSON.stringify(state.sets));}catch(e){}
+  kg.value="";wdh.value="";
+  render();
+}
+
+function addCardio(){
+  var art=document.getElementById("cArt");
+  var km=document.getElementById("cKm");
+  var min=document.getElementById("cMin");
+  var zone=document.getElementById("cZone");
+  if(!art||!art.value.trim()) return;
+  if(!state.cardio[state.sel]) state.cardio[state.sel]=[];
+  var pace = km&&min&&parseFloat(km.value)>0 ? Math.round(parseFloat(min.value)/parseFloat(km.value)*10)/10 : 0;
+  state.cardio[state.sel].push({art:art.value.trim(),km:parseFloat(km.value)||0,min:parseInt(min.value)||0,zone:parseInt(zone.value)||2,pace:pace});
+  try{localStorage.setItem("wpf_cardio_v1",JSON.stringify(state.cardio));}catch(e){}
+  km.value="";min.value="";zone.value="";
+  render();
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
