@@ -466,12 +466,46 @@ function render(){
       <div class="section-title" style="color:${day.farbe}">ÜBUNGEN · ${day.dauer}</div>
       <div class="ex-table">
         <div class="ex-header"><div class="ex-hcell">Übung</div><div class="ex-hcell">Sätze</div><div class="ex-hcell">Wdh.</div><div class="ex-hcell">Pause</div></div>
-        ${day.ueb.map((u,i)=>`<div class="ex-row">
-          <div><div class="ex-name">${u[0]}</div><div class="ex-hint">${u[4]}</div></div>
-          <div class="ex-cell ex-s">${u[1]}</div>
-          <div class="ex-cell ex-w">${u[2]}</div>
-          <div class="ex-cell ex-p">${u[3]}</div>
-        </div>`).join("")}
+        ${day.ueb.map((u,i)=>{
+          const isCardio=["laufband","bike","rudergerät","laufen","hiit","cardio","warm","cool","jumping","mountain","high knees","burpees","jump","abschluss","spazier"].some(k=>u[0].toLowerCase().includes(k));
+          const setKey=`${state.sel}_${i}`;
+          const saved=(state.uebSets&&state.uebSets[setKey])||[];
+          const totalVol=saved.reduce((a,s)=>a+(s.kg||0)*(s.wdh||0),0);
+          const totalKm=saved.reduce((a,s)=>a+(parseFloat(s.km)||0),0);
+          return `<div class="ex-row" style="display:block;padding:0">
+            <div style="display:grid;grid-template-columns:1fr 44px 50px 40px;padding:6px 8px;gap:4px;align-items:start">
+              <div>
+                <div class="ex-name">${u[0]}</div>
+                <div class="ex-hint">${u[4]}</div>
+                ${saved.length>0?`<div style="font-size:8px;color:${isCardio?"#F39C12":"#2ECC71"};margin-top:2px">${isCardio?totalKm.toFixed(1)+"km":"💪 "+saved.length+" Sätze · "+totalVol+"kg Vol."}</div>`:""}
+              </div>
+              <div class="ex-cell ex-s">${u[1]}</div>
+              <div class="ex-cell ex-w">${u[2]}</div>
+              <div class="ex-cell ex-p">${u[3]}</div>
+            </div>
+            ${saved.length>0?`<div style="background:#0a0a0a;border-top:1px solid #1a1a1a;padding:4px 8px">
+              ${isCardio?
+                saved.map((s,si)=>`<div style="display:grid;grid-template-columns:20px 1fr 50px 55px;gap:4px;padding:2px 0;font-size:9px"><span style="color:#888">${si+1}</span><span style="color:#ddd">${s.art||""}</span><span style="color:#F39C12;text-align:center">${s.km}km</span><span style="color:#888;text-align:right">${s.km>0?Math.round(s.min/s.km*10)/10:"—"}</span></div>`).join(""):
+                saved.map((s,si)=>`<div style="display:grid;grid-template-columns:20px 60px 50px 60px;gap:4px;padding:2px 0;font-size:9px"><span style="color:#888">${si+1}</span><span style="font-weight:700;color:#F39C12;text-align:center">${s.kg}kg</span><span style="color:#2ECC71;text-align:center">${s.wdh}×</span><span style="color:#888;text-align:right">${s.kg*s.wdh}kg</span></div>`).join("")
+              }
+            </div>`:""}
+            <div style="background:#0a0a0a;border-top:1px solid #1a1a1a;padding:5px 8px">
+              ${isCardio?`
+                <div style="display:grid;grid-template-columns:1fr 55px 45px 30px;gap:4px">
+                  <input placeholder="Art (Laufen...)" id="ci_art_${i}" style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:4px 6px;font-size:9px;width:100%">
+                  <input type="number" step="0.1" placeholder="km" id="ci_km_${i}" style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:4px 6px;font-size:9px;text-align:center">
+                  <input type="number" placeholder="Min" id="ci_min_${i}" style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:4px 6px;font-size:9px;text-align:center">
+                  <button onclick="addCardioSet(${state.sel},${i})" style="background:#F39C12;border:none;border-radius:5px;color:#000;font-weight:700;font-size:13px;cursor:pointer">+</button>
+                </div>` :`
+                <div style="display:grid;grid-template-columns:70px 55px 30px;gap:4px">
+                  <input type="number" step="0.5" placeholder="kg" id="ki_kg_${i}" style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:4px 6px;font-size:9px;text-align:center">
+                  <input type="number" placeholder="Wdh." id="ki_wdh_${i}" style="background:#111;border:1px solid #222;border-radius:5px;color:#fff;padding:4px 6px;font-size:9px;text-align:center">
+                  <button onclick="addKraftSet(${state.sel},${i})" style="background:#2ECC71;border:none;border-radius:5px;color:#000;font-weight:700;font-size:13px;cursor:pointer">+</button>
+                </div>`
+              }
+            </div>
+          </div>`;
+        }).join("")}
       </div>
     </div>`;
   }
@@ -662,6 +696,41 @@ function openEdit(sid){
   render();
 }
 
+
+
+function addKraftSet(dayIdx, rowIdx){
+  const kgEl=document.getElementById("ki_kg_"+rowIdx);
+  const wdhEl=document.getElementById("ki_wdh_"+rowIdx);
+  if(!kgEl||!wdhEl)return;
+  const kg=parseFloat(kgEl.value)||0;
+  const wdh=parseInt(wdhEl.value)||0;
+  if(kg===0&&wdh===0)return;
+  if(!state.uebSets)state.uebSets={};
+  const key=dayIdx+"_"+rowIdx;
+  if(!state.uebSets[key])state.uebSets[key]=[];
+  state.uebSets[key].push({kg,wdh});
+  kgEl.value="";wdhEl.value="";
+  try{localStorage.setItem("wpf_uebsets_v1",JSON.stringify(state.uebSets));}catch(e){}
+  render();
+}
+
+function addCardioSet(dayIdx, rowIdx){
+  const artEl=document.getElementById("ci_art_"+rowIdx);
+  const kmEl=document.getElementById("ci_km_"+rowIdx);
+  const minEl=document.getElementById("ci_min_"+rowIdx);
+  if(!kmEl)return;
+  const art=(artEl&&artEl.value.trim())||"";
+  const km=parseFloat(kmEl.value)||0;
+  const min=parseInt(minEl.value)||0;
+  if(km===0&&min===0)return;
+  if(!state.uebSets)state.uebSets={};
+  const key=dayIdx+"_"+rowIdx;
+  if(!state.uebSets[key])state.uebSets[key]=[];
+  state.uebSets[key].push({art,km,min});
+  if(artEl)artEl.value="";kmEl.value="";if(minEl)minEl.value="";
+  try{localStorage.setItem("wpf_uebsets_v1",JSON.stringify(state.uebSets));}catch(e){}
+  render();
+}
 
 function autoNutri(){
   const bEl=document.getElementById("fB");
