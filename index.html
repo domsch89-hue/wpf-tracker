@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+    h+='<div class="card" style="border:1px solid #2ECC71;margin-bottom:8px"><b style="font-size:11px;color:#2ECC71">💾 DATENSICHERUNG</b><div style="font-size:9px;color:#888;margin:5px 0 8px">Safari löscht Daten beim Tab-Schließen. Täglich exportieren schützt deine Daten.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button onclick="exportData()" style="padding:10px;background:#2ECC71;border:none;border-radius:8px;color:#000;font-weight:700;font-size:11px;cursor:pointer">📤 Exportieren</button><button onclick="importData()" style="padding:10px;background:transparent;border:1px solid #2ECC71;border-radius:8px;color:#2ECC71;font-weight:700;font-size:11px;cursor:pointer">📥 Importieren</button></div><div style="font-size:8px;color:#666;margin-top:6px">Export → Notizen speichern → bei Verlust Import → Code einfügen</div></div>';
+    <!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="UTF-8">
@@ -1116,9 +1117,92 @@ function parseClaude(txt){
 }
 
 // ── STORAGE ────────────────────────────────────────────────────────────────
-function loadState(){
-  try{const d=localStorage.getItem("wpf_done_v1");if(d)state.done=Object.assign({},JSON.parse(d));}catch(e){}
-  try{const l=localStorage.getItem("wpf_log_v1");if(l)state.log=Object.assign({},JSON.parse(l));}catch(e){}
+
+function exportData(){
+  const data={
+    log: state.log,
+    done: state.done,
+    sets: state.uebSets||{}
+  };
+  const json=JSON.stringify(data);
+  const b64=btoa(unescape(encodeURIComponent(json)));
+  const exportStr="WPF_BACKUP_"+new Date().toISOString().slice(0,10)+"_"+b64;
+  // Copy to clipboard
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(exportStr).then(()=>{
+      alert("✅ Daten kopiert!\n\nJetzt in die Notizen-App einfügen und speichern. Beim nächsten Öffnen über Importieren wiederherstellen.");
+    }).catch(()=>{
+      prompt("Kopiere diesen Text in deine Notizen-App:",exportStr);
+    });
+  } else {
+    prompt("Kopiere diesen Text in deine Notizen-App:",exportStr);
+  }
+}
+
+function importData(){
+  const input=prompt("Backup-Code einfügen (beginnt mit WPF_BACKUP_):");
+  if(!input||!input.startsWith("WPF_BACKUP_"))return;
+  try{
+    const b64=input.split("WPF_BACKUP_")[1].slice(11); // remove date
+    const json=decodeURIComponent(escape(atob(b64)));
+    const data=JSON.parse(json);
+    if(data.log) state.log=data.log;
+    if(data.done) state.done=data.done;
+    if(data.sets) state.uebSets=data.sets;
+    saveLog();saveDone();
+    try{localStorage.setItem("wpf_uebsets_v1",JSON.stringify(state.uebSets));}catch(e){}
+    render();
+    alert("✅ Daten wiederhergestellt!\n"+Object.keys(state.log).length+" Mahlzeit-Einträge geladen.");
+  }catch(e){
+    alert("❌ Fehler beim Importieren. Bitte den vollständigen Backup-Code einfügen.");
+  }
+}
+
+function autoSaveBackup(){
+  // Automatisch in localStorage sichern — zusätzliche Kopie
+  try{
+    const data={log:state.log,done:state.done,sets:state.uebSets||{},ts:Date.now()};
+    localStorage.setItem("wpf_autosave",JSON.stringify(data));
+    sessionStorage.setItem("wpf_session",JSON.stringify(data));
+  }catch(e){}
+}
+
+function restoreFromAutosave(){
+  // Versuche zuerst sessionStorage (Tab-übergreifend)
+  try{
+    const ss=sessionStorage.getItem("wpf_session");
+    if(ss){
+      const d=JSON.parse(ss);
+      if(d.log&&Object.keys(d.log).length>0){
+        state.log=d.log;if(d.done)state.done=d.done;if(d.sets)state.uebSets=d.sets;
+        return true;
+      }
+    }
+  }catch(e){}
+  // Dann autosave
+  try{
+    const as=localStorage.getItem("wpf_autosave");
+    if(as){
+      const d=JSON.parse(as);
+      if(d.log&&Object.keys(d.log).length>0){
+        state.log=d.log;if(d.done)state.done=d.done;if(d.sets)state.uebSets=d.sets;
+        return true;
+      }
+    }
+  }catch(e){}
+  return false;
+}
+
+async function loadState(){
+  // Zuerst autosave versuchen (verhindert Datenverlust bei Tab-Reload)
+  const restored=restoreFromAutosave();
+  if(!restored){
+    try{const d=localStorage.getItem("wpf_done_v1");if(d)state.done=Object.assign({},JSON.parse(d));}catch(e){}
+    try{const l=localStorage.getItem("wpf_log_v1");if(l)state.log=Object.assign({},JSON.parse(l));}catch(e){}
+  } else {
+    // Auch primäre Keys nachladen falls autosave leer war
+    try{const d=localStorage.getItem("wpf_done_v1");if(d&&Object.keys(state.done).length===0)state.done=Object.assign({},JSON.parse(d));}catch(e){}
+  }
   try{const s=localStorage.getItem("wpf_sets_v1");if(s)state.sets=Object.assign({},JSON.parse(s));}catch(e){}
   try{const u=localStorage.getItem("wpf_uebsets_v1");if(u)state.uebSets=Object.assign({},JSON.parse(u));}catch(e){}
   // Migration alte Keys
@@ -1142,26 +1226,28 @@ function loadState(){
       }
     }catch(e){}
   });
-  // Versuche window.storage Migration (alter Claude Artifact Speicher)
-  if(typeof window!=="undefined"&&window.storage&&typeof window.storage.get==="function"&&Object.keys(state.log).length===0){
-    window.storage.get("wpf_html_log").then(r=>{
-      if(!r||!r.value)return;
-      try{
-        const old=JSON.parse(r.value);const base=new Date("2026-05-30");
-        Object.keys(old).forEach(k=>{
-          const e=old[k];const m=k.match(/^d(\d+)_(.+)$/);
-          if(m){
-            const nd=new Date(base);nd.setDate(nd.getDate()+parseInt(m[1]));
-            const y=nd.getFullYear(),mo=String(nd.getMonth()+1).padStart(2,"0"),dd=String(nd.getDate()).padStart(2,"0");
-            const nk=y+"-"+mo+"-"+dd+"|"+m[2];
-            if(!state.log[nk])state.log[nk]={b:e.b||"",k:e.kcal||e.k||0,p:e.p||0};
-          }
-        });
-        localStorage.setItem("wpf_log_v1",JSON.stringify(state.log));
-        render();
-      }catch(ex){}
-    }).catch(()=>{});
-  }
+  // Versuche window.storage Migration async
+  (async()=>{
+    try{
+      if(typeof window!=="undefined"&&window.storage&&typeof window.storage.get==="function"&&Object.keys(state.log).length===0){
+        const r1=await window.storage.get("wpf_html_log");
+        if(r1&&r1.value){
+          const old=JSON.parse(r1.value);const base=new Date("2026-05-30");
+          Object.keys(old).forEach(k=>{
+            const e=old[k];const m=k.match(/^d(\d+)_(.+)$/);
+            if(m){
+              const nd=new Date(base);nd.setDate(nd.getDate()+parseInt(m[1]));
+              const y=nd.getFullYear(),mo=String(nd.getMonth()+1).padStart(2,"0"),dd=String(nd.getDate()).padStart(2,"0");
+              const nk=y+"-"+mo+"-"+dd+"|"+m[2];
+              if(!state.log[nk])state.log[nk]={b:e.b||"",k:e.kcal||e.k||0,p:e.p||0};
+            }
+          });
+          localStorage.setItem("wpf_log_v1",JSON.stringify(state.log));
+          render();
+        }
+      }
+    }catch(ex){}
+  })();
   const idx=getDayIndex();
   state.sel=Math.max(0,Math.min(PLAN.length-1,idx>=0?idx:0));
   render();
@@ -1169,9 +1255,11 @@ function loadState(){
 
 function saveDone(){
   try{localStorage.setItem("wpf_done_v1",JSON.stringify(state.done));}catch(e){}
+  autoSaveBackup();
 }
 function saveLog(){
   try{localStorage.setItem("wpf_log_v1",JSON.stringify(state.log));}catch(e){}
+  autoSaveBackup();
 }
 
 function getDayIndex(){
@@ -1196,6 +1284,82 @@ function parseClaude(txt){
 }
 
 // ── STORAGE ────────────────────────────────────────────────────────────────
+async 
+function exportData(){
+  const data={
+    log: state.log,
+    done: state.done,
+    sets: state.uebSets||{}
+  };
+  const json=JSON.stringify(data);
+  const b64=btoa(unescape(encodeURIComponent(json)));
+  const exportStr="WPF_BACKUP_"+new Date().toISOString().slice(0,10)+"_"+b64;
+  // Copy to clipboard
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(exportStr).then(()=>{
+      alert("✅ Daten kopiert!\n\nJetzt in die Notizen-App einfügen und speichern. Beim nächsten Öffnen über Importieren wiederherstellen.");
+    }).catch(()=>{
+      prompt("Kopiere diesen Text in deine Notizen-App:",exportStr);
+    });
+  } else {
+    prompt("Kopiere diesen Text in deine Notizen-App:",exportStr);
+  }
+}
+
+function importData(){
+  const input=prompt("Backup-Code einfügen (beginnt mit WPF_BACKUP_):");
+  if(!input||!input.startsWith("WPF_BACKUP_"))return;
+  try{
+    const b64=input.split("WPF_BACKUP_")[1].slice(11); // remove date
+    const json=decodeURIComponent(escape(atob(b64)));
+    const data=JSON.parse(json);
+    if(data.log) state.log=data.log;
+    if(data.done) state.done=data.done;
+    if(data.sets) state.uebSets=data.sets;
+    saveLog();saveDone();
+    try{localStorage.setItem("wpf_uebsets_v1",JSON.stringify(state.uebSets));}catch(e){}
+    render();
+    alert("✅ Daten wiederhergestellt!\n"+Object.keys(state.log).length+" Mahlzeit-Einträge geladen.");
+  }catch(e){
+    alert("❌ Fehler beim Importieren. Bitte den vollständigen Backup-Code einfügen.");
+  }
+}
+
+function autoSaveBackup(){
+  // Automatisch in localStorage sichern — zusätzliche Kopie
+  try{
+    const data={log:state.log,done:state.done,sets:state.uebSets||{},ts:Date.now()};
+    localStorage.setItem("wpf_autosave",JSON.stringify(data));
+    sessionStorage.setItem("wpf_session",JSON.stringify(data));
+  }catch(e){}
+}
+
+function restoreFromAutosave(){
+  // Versuche zuerst sessionStorage (Tab-übergreifend)
+  try{
+    const ss=sessionStorage.getItem("wpf_session");
+    if(ss){
+      const d=JSON.parse(ss);
+      if(d.log&&Object.keys(d.log).length>0){
+        state.log=d.log;if(d.done)state.done=d.done;if(d.sets)state.uebSets=d.sets;
+        return true;
+      }
+    }
+  }catch(e){}
+  // Dann autosave
+  try{
+    const as=localStorage.getItem("wpf_autosave");
+    if(as){
+      const d=JSON.parse(as);
+      if(d.log&&Object.keys(d.log).length>0){
+        state.log=d.log;if(d.done)state.done=d.done;if(d.sets)state.uebSets=d.sets;
+        return true;
+      }
+    }
+  }catch(e){}
+  return false;
+}
+
 async function loadState(){
   try{
     const r1=await window.storage.get("wpf_html_done");
